@@ -2,10 +2,11 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException   
 from datetime import date
 import os
 import csv
+from flask import Flask,render_template,request,send_file
 
 
 class tenant_And_Lispendens():
@@ -18,7 +19,8 @@ class tenant_And_Lispendens():
     driver.implicitly_wait(10)
     driver.find_element(By.CSS_SELECTOR,"input[name='ctl00$c_UsernameTextBox']").send_keys('username')
     driver.find_element(By.CSS_SELECTOR,"input[name='ctl00$c_PasswordTextBox']").send_keys('password')
-    driver.find_element(By.CSS_SELECTOR,"input[value='Login to CORE']").click()
+    driver.find_element(By.CSS_SELECTOR,"input[value='Login to CORE']").click()       
+             
     def check_CaseStatus(self,case_Id,case_Status,tenant_Lispendens_caseDetails):
         try:
             if (case_Status=='OPEN'):
@@ -33,9 +35,13 @@ class tenant_And_Lispendens():
                 self.driver.refresh() 
         except NoSuchElementException:
             self.driver.refresh()           
-    def tenant_Lispendens_SearchCaseStatus(self,case_Details,tenant_FileName,csv_FileName,today_Date,lispendens_FileName,tenant_Lispendens_CsvfilePath):
+    def tenant_Lispendens_SearchCaseStatus(self,tenant_And_Lispendens_ExtractionFilepath,case_Details,csv_FileName):
         try:
             teant_Lispendens_caseDtaills=[]
+            today_dateTime = date.today()
+            today_Date = today_dateTime.strftime("%d-%m-%Y")
+            tenant_FileName="tenant-"+today_Date+".csv"
+            lispendens_FileName="lispendens-"+today_Date+".csv"
             for case_Detail in case_Details:
                 case_Number=case_Detail['CaseNumber']
                 file_date_time=case_Detail['FileDate'].split(' ')
@@ -66,7 +72,8 @@ class tenant_And_Lispendens():
                         obj.check_CaseStatus(case_Id,case_Status,teant_Lispendens_caseDtaills)
                         self.driver.refresh()
                     else:
-                        self.driver.refresh()              
+                        self.driver.refresh()
+                    #csv_Headings = teant_Lispendens_caseDtaills[0].keys()              
                 elif(csv_FileName==lispendens_FileName):            
                     if (case_Status=='OPEN'):
                         obj.check_CaseStatus(case_Id,case_Status,teant_Lispendens_caseDtaills)
@@ -74,26 +81,56 @@ class tenant_And_Lispendens():
                     else:
                         self.driver.refresh()
                     csv_Headings = teant_Lispendens_caseDtaills[0].keys()      
+    
         except NoSuchElementException:
             self.driver.refresh()
         
-        with open(f'{tenant_Lispendens_CsvfilePath}convertfile.csv', 'w', newline='') as output_file:
+        with open(f'{tenant_And_Lispendens_ExtractionFilepath}convertfile.csv', 'w', newline='') as output_file:
             dict_writer = csv.DictWriter(output_file, csv_Headings)
             dict_writer.writeheader()
-            dict_writer.writerows(teant_Lispendens_caseDtaills)            
+            dict_writer.writerows(teant_Lispendens_caseDtaills)
+        
+            
+obj=tenant_And_Lispendens()           
+app=Flask(__name__)
+app.config["UPLOAD_FOLDER"]="Dual_court/Upload Excel File/static"
+@app.route("/",methods=['GET','POST'])
+def upload():
+    if request.method == 'POST':
+        upload_file = request.files['upload_excel']
+        if upload_file.filename != '':
+            tenant_Lispendens_CsvfilePath = os.path.join(app.config["UPLOAD_FOLDER"],'excel', upload_file.filename)
+            upload_file.save(tenant_Lispendens_CsvfilePath)
+            case_Details=[*csv.DictReader(open(tenant_Lispendens_CsvfilePath))]
+            global csv_FileName            
+            csv_FileName=os.path.basename(tenant_Lispendens_CsvfilePath)
+            tenant_And_Lispendens_ExtractionFilepath=os.path.join(app.config["UPLOAD_FOLDER"],'convertExcel',upload_file.filename)
+            obj.tenant_Lispendens_SearchCaseStatus(tenant_And_Lispendens_ExtractionFilepath,case_Details,csv_FileName)     
+    return render_template("UploadExcel.html")
 
-usergiven_fileName=input("which file you want use tenant or lispendens:")
-today_dateTime = date.today()
-today_Date = today_dateTime.strftime("%d-%m-%Y")
-currentDirectory_path=os.path.dirname(os.path.abspath(__file__))
-tenant_Lispendens_CsvfilePath=os.path.join(currentDirectory_path,'{}-{}{}'.format(usergiven_fileName,today_Date,'.csv'))
-print(tenant_Lispendens_CsvfilePath)
-case_Details=[*csv.DictReader(open(tenant_Lispendens_CsvfilePath))]
-csv_FileName=os.path.basename(tenant_Lispendens_CsvfilePath)
-tenant_FileName="tenant-"+today_Date+".csv"
-lispendens_FileName="lispendens-"+today_Date+".csv"
-obj=tenant_And_Lispendens()
-obj.tenant_Lispendens_SearchCaseStatus(case_Details,tenant_FileName,csv_FileName,today_Date,lispendens_FileName,tenant_Lispendens_CsvfilePath)
+@app.route('/download')
+def download_file(): 
+    print(csv_FileName)
+    csv_filname=csv_FileName+"convertfile.csv"
+    file=os.path.join('static','convertExcel',csv_filname)
+    print(file)
+    return send_file(file, as_attachment=True)
+
+    
+if __name__=='__main__':
+    app.run(debug=True)
+
+       
+            
+        
+
+
+    
+                
+    
+
+
+
 
 
 
