@@ -1,0 +1,26 @@
+<html>
+	<head>
+		<title>Dual Court Upload CSV File</title>
+		<link rel="stylesheet" href="{{url_for('static',filename='css/bootstrap.min.css')}}">
+		<script src="{{url_for('static',filename='js/jquery.min.js')}}"></script>		
+	</head>
+	<body>
+		<div class="col-md-offset-3 col-md-5" style="margin-top:70px">
+			<form method="POST" action="/" enctype="multipart/form-data">
+				<h3 class="page-header text-primary">Upload Csv File</h3>
+				<div class="form-group">
+					<label>Browse csv File</label>
+					<input class="form-control" type="file" name="upload_Csv">
+				</div>
+				<div class="form-group">
+					<button type="submit" class="btn btn-success btn-block">Upload Csv File</button>
+				</div>
+				<div>
+					<button>	
+					<a href="{{url_for('download_csvfile')}}">Download Extract Csv File</a>
+					</button>
+					</div>
+			</form>
+		</div>
+	</body>
+</html>
